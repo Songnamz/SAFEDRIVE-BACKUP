@@ -1,0 +1,187 @@
+<Window x:Class="SafeDriveBackup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:SafeDriveBackup.ViewModels"
+        Title="SafeDrive Backup"
+        Height="680" Width="980"
+        MinHeight="600" MinWidth="860"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI"
+        Background="{StaticResource ContentBg}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Sidebar -->
+            <ColumnDefinition Width="210"/>
+            <!-- Content -->
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ── Sidebar ──────────────────────────────────────────────── -->
+        <Border Grid.Column="0"
+                Background="{StaticResource SidebarBg}"
+                Visibility="{Binding NavVisible, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+
+                <!-- App header in sidebar -->
+                <StackPanel DockPanel.Dock="Top" Margin="20,24,20,20">
+                    <TextBlock Text="SafeDrive" Foreground="White"
+                               FontSize="20" FontWeight="Bold"/>
+                    <TextBlock Text="Backup" Foreground="#7FB3D3"
+                               FontSize="20" FontWeight="Light"/>
+                </StackPanel>
+
+                <!-- Separator -->
+                <Border DockPanel.Dock="Top" Height="1"
+                        Background="#2D3E50" Margin="16,0,16,12"/>
+
+                <!-- Nav items -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,0">
+
+                    <Button Command="{Binding NavStatusCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStatusSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x2714;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Status"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding NavFoldersCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFoldersSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4C1;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Folders"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding NavDestCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDestinationSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4BE;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Destination"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding NavRestoreCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRestoreSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x21BA;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Restore"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding NavSettingsCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSettingsSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x2699;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Settings"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding NavLogsCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavBtn}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLogsSel}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4CB;" Width="20" FontSize="12"/>
+                            <TextBlock Text="Logs"/>
+                        </StackPanel>
+                    </Button>
+
+                </StackPanel>
+
+                <!-- Bottom: Backup Now button -->
+                <Border DockPanel.Dock="Bottom" Margin="12,0,12,20">
+                    <Button Style="{StaticResource SuccessBtn}"
+                            Command="{Binding BackupNowCommand}"
+                            HorizontalAlignment="Stretch"
+                            Content="Backup Now"/>
+                </Border>
+
+            </DockPanel>
+        </Border>
+
+        <!-- ── Setup overlay (full-width, no sidebar) ──────────────── -->
+        <Border Grid.Column="0" Grid.ColumnSpan="2"
+                Background="{StaticResource ContentBg}"
+                Visibility="{Binding SetupVisible, Converter={StaticResource BoolToVis}}">
+            <ContentControl Content="{Binding Current}"/>
+        </Border>
+
+        <!-- ── Main content area ────────────────────────────────────── -->
+        <Grid Grid.Column="1"
+              Visibility="{Binding NavVisible, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <ContentControl Grid.Row="0" Content="{Binding Current}"/>
+
+            <TextBlock Grid.Row="1"
+                       Text="© 2026 Songnam Saraphai. Licensed under MIT."
+                       HorizontalAlignment="Right"
+                       Margin="0,4,16,6"
+                       FontSize="11"
+                       Foreground="{StaticResource TextMuted}"/>
+        </Grid>
+    </Grid>
+</Window>

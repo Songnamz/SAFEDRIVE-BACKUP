@@ -1,0 +1,170 @@
+<UserControl x:Class="SafeDriveBackup.Views.RestoreView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <Grid Background="{StaticResource ContentBg}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="28,28,28,0">
+            <TextBlock Style="{StaticResource H1}" Text="Restore Files" Margin="0,0,0,6"/>
+            <TextBlock Style="{StaticResource Muted}"
+                       Text="Browse and restore files from your backup."
+                       Margin="0,0,0,16"/>
+        </StackPanel>
+
+        <!-- Tab bar -->
+        <Border Grid.Row="1" Margin="28,0,28,0" Padding="4"
+                Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1">
+            <StackPanel Orientation="Horizontal">
+                <Button Command="{Binding SelectCurrentTabCommand}" Width="160" Margin="0,0,2,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SecondaryBtn}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCurrentTab}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <TextBlock Text="Current Files"/>
+                </Button>
+                <Button Command="{Binding SelectVersionsTabCommand}" Width="160" Margin="2,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SecondaryBtn}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsVersionsTab}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <TextBlock Text="Older Versions"/>
+                </Button>
+                <Button Command="{Binding SelectDeletedTabCommand}" Width="160" Margin="2,0,0,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SecondaryBtn}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeletedTab}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <TextBlock Text="Deleted Files"/>
+                </Button>
+                <Button Content="Refresh" Style="{StaticResource SecondaryBtn}"
+                        Command="{Binding RefreshCommand}" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- File list -->
+        <Border Grid.Row="2" Margin="28,12,28,0" Style="{StaticResource Card}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Column headers -->
+                <Border Grid.Row="0" Background="{StaticResource ContentBg}"
+                        BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="12,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="File Name"    FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}"/>
+                        <TextBlock Grid.Column="1" Text="Folder"       FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}"/>
+                        <TextBlock Grid.Column="2" Text="Date"         FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}"/>
+                        <TextBlock Grid.Column="3" Text="Size"         FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}"/>
+                        <TextBlock Grid.Column="4" Text="{Binding VersionsColumnHeader}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Items -->
+                <ListBox Grid.Row="1" ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding SelectedItem}"
+                         BorderThickness="0" Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding"         Value="12,8"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#EBF3FB"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                           FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="1" Text="{Binding OriginalFolder}"
+                                           Style="{StaticResource Muted}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding DisplayDate}"
+                                           Style="{StaticResource Muted}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding DisplaySize}"
+                                           Style="{StaticResource Muted}"/>
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding DisplayVersionCount}"
+                                           Style="{StaticResource Muted}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Bottom action bar -->
+        <Border Grid.Row="3" Margin="28,12,28,28">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center" FontSize="13"
+                           Foreground="{StaticResource TextMuted}"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Restore to Original Location"
+                            Style="{StaticResource PrimaryBtn}"
+                            Command="{Binding RestoreToOriginalCommand}"/>
+                    <Button Content="Restore to Folder…"
+                            Style="{StaticResource SecondaryBtn}"
+                            Command="{Binding RestoreToFolderCommand}"
+                            Margin="12,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,133 @@
+<UserControl x:Class="SafeDriveBackup.Views.DestinationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource ContentBg}">
+        <StackPanel Margin="28,28,28,28" MaxWidth="640">
+
+            <TextBlock Style="{StaticResource H1}" Text="Backup Destination" Margin="0,0,0,6"/>
+            <TextBlock Style="{StaticResource Muted}"
+                       Text="Set where your backups will be stored and how often."
+                       Margin="0,0,0,24"/>
+
+            <!-- Destination path -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Destination Path" Margin="0,0,0,12"/>
+
+                    <!-- Availability indicator -->
+                    <Border CornerRadius="6" Padding="10,6" Margin="0,0,0,12"
+                            HorizontalAlignment="Left">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#FEF0F0"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DestinationAvailable}" Value="True">
+                                        <Setter Property="Background" Value="#EBF8F4"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource RedError}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DestinationAvailable}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource GreenOk}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="12"/>
+                            <TextBlock Text=" — " FontSize="12"
+                                       Visibility="{Binding DestinationAvailable, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="{Binding AvailableSpace}" FontSize="12" FontWeight="SemiBold"
+                                       Visibility="{Binding DestinationAvailable, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Browse…"
+                                Style="{StaticResource SecondaryBtn}"
+                                Command="{Binding BrowseCommand}"/>
+                    </Grid>
+
+                    <TextBlock Margin="0,8,0,0" FontSize="11"
+                               Foreground="{StaticResource TextMuted}"
+                               Text="Use a UNC path for network locations: \\server\share\Backup"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Backup mode -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Backup Mode" Margin="0,0,0,12"/>
+
+                    <RadioButton IsChecked="{Binding ModeContinuous}" Margin="0,4,0,0"
+                                 FontSize="13" GroupName="mode">
+                        <StackPanel>
+                            <TextBlock Text="Continuous backup (real-time file watcher)" FontSize="13"/>
+                            <TextBlock Text="Files are backed up within seconds of being saved."
+                                       FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding Mode30Min}" Margin="0,8,0,0"
+                                 FontSize="13" GroupName="mode">
+                        <StackPanel>
+                            <TextBlock Text="Every 30 minutes" FontSize="13"/>
+                            <TextBlock Text="A full backup scan runs every 30 minutes."
+                                       FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding Mode1Hour}" Margin="0,8,0,0"
+                                 FontSize="13" GroupName="mode">
+                        <StackPanel>
+                            <TextBlock Text="Every 1 hour" FontSize="13"/>
+                            <TextBlock Text="A full backup scan runs once per hour."
+                                       FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding ModeDaily}" Margin="0,8,0,0"
+                                 FontSize="13" GroupName="mode">
+                        <StackPanel>
+                            <TextBlock Text="Daily" FontSize="13"/>
+                            <TextBlock Text="A full backup scan runs once every 24 hours."
+                                       FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding ModeDriveConnect}" Margin="0,8,0,0"
+                                 FontSize="13" GroupName="mode">
+                        <StackPanel>
+                            <TextBlock Text="Only when backup drive is connected" FontSize="13"/>
+                            <TextBlock Text="Backup runs automatically each time the destination drive is plugged in or becomes reachable."
+                                       FontSize="11" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+
+            <!-- Save / Check buttons -->
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Save Changes"
+                        Style="{StaticResource PrimaryBtn}"
+                        Command="{Binding SaveCommand}"/>
+                <Button Content="Check Now"
+                        Style="{StaticResource SecondaryBtn}"
+                        Command="{Binding CheckCommand}"
+                        Margin="12,0,0,0"/>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
