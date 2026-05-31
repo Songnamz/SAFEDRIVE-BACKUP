@@ -19,7 +19,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
-LicenseFile=LICENSE.txt
+LicenseFile=LICENSE
 
 OutputDir=installer-output
 OutputBaseFilename=SafeDriveBackup-Setup-v{#MyAppVersion}
@@ -38,7 +38,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"
 
 [Files]
 Source: "{#MySourceExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
