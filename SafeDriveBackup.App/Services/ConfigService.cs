@@ -50,6 +50,17 @@ public class ConfigService
         ConfigSaved?.Invoke();
     }
 
+    public void SaveSilent()
+    {
+        try
+        {
+            Directory.CreateDirectory(PathHelper.AppDataFolder);
+            File.WriteAllText(LocalConfigPath, JsonSerializer.Serialize(_config, JsonOptions));
+            TrySaveToDestination();
+        }
+        catch { /* ignore */ }
+    }
+
     private void TrySaveToDestination()
     {
         if (string.IsNullOrEmpty(_config.BackupRoot)) return;

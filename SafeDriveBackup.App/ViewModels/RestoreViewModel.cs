@@ -23,7 +23,7 @@ public class RestoreViewModel : BaseViewModel
             OnPropertyChanged(nameof(IsVersionsTab));
             OnPropertyChanged(nameof(IsDeletedTab));
             OnPropertyChanged(nameof(VersionsColumnHeader));
-            LoadTab();
+            _ = LoadTabAsync();
         }
     }
 
@@ -78,9 +78,9 @@ public class RestoreViewModel : BaseViewModel
         RefreshCommand           = new RelayCommand(Refresh);
     }
 
-    public void Refresh() => LoadTab();
+    public void Refresh() => _ = LoadTabAsync();
 
-    private void LoadTab()
+    private async Task LoadTabAsync()
     {
         Items.Clear();
         StatusMessage = "Loading…";
@@ -89,9 +89,9 @@ public class RestoreViewModel : BaseViewModel
         {
             var items = _selectedTab switch
             {
-                "Current"  => _restore.GetCurrentFiles(),
-                "Versions" => _restore.GetVersionFiles(),
-                "Deleted"  => _restore.GetDeletedFiles(),
+                "Current"  => await _restore.GetCurrentFilesAsync(),
+                "Versions" => await _restore.GetVersionFilesAsync(),
+                "Deleted"  => await _restore.GetDeletedFilesAsync(),
                 _ => new List<RestoreItem>()
             };
 
@@ -136,7 +136,7 @@ public class RestoreViewModel : BaseViewModel
             ? $"Restored successfully: {item.FileName}"
             : $"Restore failed: {item.FileName}";
 
-        if (ok) LoadTab();
+        if (ok) await LoadTabAsync();
 
         IsRestoring = false;
     }

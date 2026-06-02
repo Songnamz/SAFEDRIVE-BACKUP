@@ -1,0 +1,107 @@
+========================================
+  SafeDrive Backup — Build & Run Guide
+========================================
+
+REQUIREMENTS
+------------
+- Windows 10 or Windows 11
+- .NET 8 SDK (https://dotnet.microsoft.com/download/dotnet/8.0)
+  Choose: .NET 8 SDK, Windows x64
+
+QUICK START
+-----------
+1. Open PowerShell or Command Prompt
+2. Navigate to the project folder:
+     cd "C:\Users\admin\Documents\SafeDrive Backup\SafeDriveBackup.App"
+
+3. Restore packages:
+     dotnet restore
+
+4. Build:
+     dotnet build
+
+5. Run:
+     dotnet run
+
+   Or build a self-contained executable:
+     dotnet publish -c Release -r win-x64 --self-contained true -o publish\
+
+   The output will be in:  publish\SafeDriveBackup.exe
+
+VISUAL STUDIO
+-------------
+- Open: SafeDriveBackup.sln
+- Set startup project: SafeDriveBackup.App
+- Press F5 to run
+
+FIRST RUN
+---------
+On first launch the Setup Wizard appears (3 steps):
+  Step 1 — Welcome overview
+  Step 2 — Select which folders to back up
+  Step 3 — Choose backup destination (browse or type UNC path)
+
+After setup, click "Start Backup ✓" and the app starts backing up.
+The window minimises to the Windows system tray. Double-click the
+tray icon to reopen.
+
+PROJECT STRUCTURE
+-----------------
+SafeDriveBackup.App/
+  Models/          — AppConfig, BackupResult, RestoreItem, etc.
+  Helpers/         — PathHelper, FileCompareHelper, SafeCopyHelper
+  Services/        — BackupService, FileWatcherService, RestoreService,
+                     ConfigService, LogService, TrayIconService, CleanupService
+  ViewModels/      — BaseViewModel (+ RelayCommand), one VM per screen
+  Views/           — XAML UserControls, one per screen
+  Converters/      — Value converters for XAML bindings
+
+CONFIG FILE LOCATION
+--------------------
+%APPDATA%\SafeDriveBackup\safedrive-config.json
+
+LOG FILES
+---------
+<BackupDestination>\COMPUTERNAME_USERNAME\Logs\backup-yyyy-MM-dd.log
+
+BACKUP FOLDER STRUCTURE (on the destination drive)
+---------------------------------------------------
+SafeDriveBackup\
+  COMPUTERNAME_USERNAME\
+    Current\          — Latest copy of each file
+    Versions\         — Older versions (up to KeepVersions per file)
+    Deleted\          — Files deleted from source (kept KeepDeletedDays days)
+    Logs\             — Daily log files
+    safedrive-config.json
+
+KEY SETTINGS (Settings screen)
+-------------------------------
+Keep latest versions per file : 5 (default)
+Keep deleted files for (days) : 30 (default)
+Periodic full scan (hours)    : 4 (default)
+Ransomware threshold          : 500 files / 5 minutes
+Start with Windows            : toggle
+
+SAFETY RULES
+------------
+- One-way backup ONLY (source → destination, never the reverse)
+- Deleted source files → moved to Deleted\yyyy-MM-dd (never permanently erased)
+- Changed files → old copy moved to Versions before overwrite
+- If >500 files change in 5 minutes, backup pauses automatically
+  (ransomware protection — resume manually from Status screen or tray)
+- Copies via temp file (.safedrive-tmp) then renames → no partial files
+- Locked files are retried up to 3 times with a 30-second delay
+
+TRAY ICON COLOURS
+-----------------
+Blue shield     — Protected (all good)
+Green           — Protected
+Grey            — Paused
+Yellow          — Warning (ransomware protection triggered)
+Red             — Error
+
+BUILDING AN INSTALLER (optional, for later)
+-------------------------------------------
+Use Inno Setup (https://jrsoftware.org/isinfo.php):
+- Point it at the publish\ folder output
+- Set output to a single .exe installer

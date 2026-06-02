@@ -105,10 +105,10 @@ public class TrayIconService : IDisposable
         _tray?.ShowBalloonTip(4000, title, message, icon);
     }
 
-    public static System.Windows.Media.ImageSource CreateShieldImageSource(Color color)
+    public static System.Windows.Media.ImageSource CreateShieldImageSource(Color color, int size = 64)
     {
-        using var bmp = new Bitmap(32, 32);
-        DrawShield(bmp, color);
+        using var bmp = new Bitmap(size, size);
+        DrawShield(bmp, color, size);
         var hBitmap = bmp.GetHbitmap();
         try
         {
@@ -123,11 +123,14 @@ public class TrayIconService : IDisposable
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
 
-    private static void DrawShield(Bitmap bmp, Color color)
+    private static void DrawShield(Bitmap bmp, Color color, int size = 32)
     {
         using var g = Graphics.FromImage(bmp);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         g.Clear(Color.Transparent);
+        
+        float scale = size / 32f;
+        g.ScaleTransform(scale, scale);
 
         var shield = new System.Drawing.Drawing2D.GraphicsPath();
         shield.AddPolygon(new PointF[]
@@ -149,8 +152,8 @@ public class TrayIconService : IDisposable
 
     private static Icon CreateShieldIcon(Color color)
     {
-        using var bmp = new Bitmap(32, 32);
-        DrawShield(bmp, color);
+        using var bmp = new Bitmap(32, 32); // Tray icon is fine at 32x32
+        DrawShield(bmp, color, 32);
         var hIcon = bmp.GetHicon();
         var icon = Icon.FromHandle(hIcon);
         var clone = (Icon)icon.Clone();

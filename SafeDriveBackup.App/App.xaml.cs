@@ -148,6 +148,7 @@ public partial class App : System.Windows.Application
         // Core services (all singleton — one instance for the app lifetime)
         svc.AddSingleton<ConfigService>();
         svc.AddSingleton<LogService>();
+        svc.AddSingleton<VssService>();
         svc.AddSingleton<BackupService>();
         svc.AddSingleton<FileWatcherService>();
         svc.AddSingleton<RestoreService>();

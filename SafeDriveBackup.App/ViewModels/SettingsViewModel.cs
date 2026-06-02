@@ -14,6 +14,7 @@ public class SettingsViewModel : BaseViewModel
     private int  _ransomwareWindowMinutes;
     private int  _retryDelaySeconds;
     private int  _maxRetryAttempts;
+    private string _excludedPatternsStr = "";
     private string _statusMessage = "";
 
     public bool StartWithWindows        { get => _startWithWindows;        set => SetProperty(ref _startWithWindows,        value); }
@@ -24,6 +25,7 @@ public class SettingsViewModel : BaseViewModel
     public int  RansomwareWindowMinutes { get => _ransomwareWindowMinutes; set => SetProperty(ref _ransomwareWindowMinutes, value); }
     public int  RetryDelaySeconds       { get => _retryDelaySeconds;       set => SetProperty(ref _retryDelaySeconds,       value); }
     public int  MaxRetryAttempts        { get => _maxRetryAttempts;        set => SetProperty(ref _maxRetryAttempts,        value); }
+    public string ExcludedPatternsStr   { get => _excludedPatternsStr;     set => SetProperty(ref _excludedPatternsStr,     value); }
     public string StatusMessage         { get => _statusMessage;           set => SetProperty(ref _statusMessage,           value); }
 
     public System.Windows.Input.ICommand SaveCommand  { get; }
@@ -48,6 +50,7 @@ public class SettingsViewModel : BaseViewModel
         RansomwareWindowMinutes = cfg.RansomwareWindowMinutes;
         RetryDelaySeconds       = cfg.RetryDelaySeconds;
         MaxRetryAttempts        = cfg.MaxRetryAttempts;
+        ExcludedPatternsStr     = string.Join(", ", cfg.ExcludedPatterns);
         StatusMessage = "";
     }
 
@@ -61,6 +64,7 @@ public class SettingsViewModel : BaseViewModel
         cfg.RansomwareWindowMinutes = Math.Max(1, RansomwareWindowMinutes);
         cfg.RetryDelaySeconds       = Math.Max(5, RetryDelaySeconds);
         cfg.MaxRetryAttempts        = Math.Max(1, MaxRetryAttempts);
+        cfg.ExcludedPatterns        = ExcludedPatternsStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         _config.SetStartWithWindows(StartWithWindows);
         _config.Save();
 
@@ -86,6 +90,7 @@ public class SettingsViewModel : BaseViewModel
         RansomwareWindowMinutes = 5;
         RetryDelaySeconds       = 30;
         MaxRetryAttempts        = 3;
+        ExcludedPatternsStr     = "~$*, *.tmp, node_modules, .git, bin, obj";
         StatusMessage = "Defaults restored. Click Save to apply.";
     }
 }

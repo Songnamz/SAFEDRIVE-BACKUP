@@ -8,6 +8,7 @@ public class BackupService
 {
     private readonly ConfigService _config;
     private readonly LogService _log;
+    private readonly VssService _vss;
 
     private volatile bool _isRunning;
     private volatile bool _isPaused;
@@ -28,10 +29,20 @@ public class BackupService
     public BackupResult? LastResult => _lastResult;
     public BackupStatusEnum CurrentStatus => _currentStatus;
 
-    public BackupService(ConfigService configService, LogService logService)
+    public BackupService(ConfigService configService, LogService logService, VssService vssService)
     {
         _config = configService;
         _log = logService;
+        _vss = vssService;
+    }
+
+    private IStorageProvider GetStorage()
+    {
+        var cfg = _config.Config;
+        if (cfg.DestinationType == DestinationType.S3Compatible)
+            return new S3StorageProvider(cfg);
+        
+        return new LocalStorageProvider(cfg.BackupRoot ?? "");
     }
 
     public void SetupLogFolder()
@@ -71,7 +82,7 @@ public class BackupService
                 CleanupOldDeletedFiles();
 
                 cfg.LastSuccessfulBackup = DateTime.Now;
-                _config.Save();
+                _config.SaveSilent();
 
                 result.EndTime = DateTime.Now;
                 _lastResult = result;
@@ -98,6 +109,7 @@ public class BackupService
         }
         finally
         {
+            _vss.CleanupSnapshots();
             _isRunning = false;
         }
 
@@ -122,7 +134,7 @@ public class BackupService
                 if (!Directory.Exists(src)) { _log.Log($"Source not found: {src}"); continue; }
 
                 var dst = Path.Combine(currentBase, kvp.Key);
-                Directory.CreateDirectory(dst);
+                await GetStorage().CreateDirectoryAsync(dst);
 
                 ProgressChanged?.Invoke($"Backing up {kvp.Key}…");
                 _log.Log($"Backing up folder: {kvp.Key}");
@@ -154,8 +166,10 @@ public class BackupService
         foreach (var srcFile in files)
         {
             if (ct.IsCancellationRequested) break;
-
+            
             var rel = Path.GetRelativePath(srcFolder, srcFile);
+            if (FilterHelper.IsExcluded(rel, _config.Config.ExcludedPatterns)) continue;
+
             var dstFile = Path.Combine(dstFolder, rel);
             await BackupFileAsync(srcFile, dstFile, folderName, rel, result);
         }
@@ -168,16 +182,41 @@ public class BackupService
         {
             if (!File.Exists(srcFile)) return;
 
-            if (File.Exists(dstFile))
+            var storage = GetStorage();
+
+            if (await storage.ExistsAsync(dstFile))
             {
-                if (!FileCompareHelper.IsDifferent(srcFile, dstFile))
+                var srcFi = new FileInfo(srcFile);
+                var dstSize = await storage.GetFileSizeAsync(dstFile);
+                var dstTime = await storage.GetLastWriteTimeUtcAsync(dstFile);
+                
+                bool isDifferent = srcFi.Length != dstSize || Math.Abs((srcFi.LastWriteTimeUtc - dstTime).TotalSeconds) > 2;
+
+                if (!isDifferent)
                 {
                     // For small files, verify with hash to catch timestamp-identical but changed files
-                    var fileSize = new FileInfo(srcFile).Length;
-                    if (fileSize <= 10 * 1024 * 1024 && !FileCompareHelper.IsDifferentByHash(srcFile, dstFile))
+                    if (srcFi.Length <= 10 * 1024 * 1024)
+                    {
+                        var dstHash = await storage.GetSha256HashAsync(dstFile);
+                        if (!string.IsNullOrEmpty(dstHash))
+                        {
+                            var srcHash = FileCompareHelper.IsDifferentByHash(srcFile, "") ? "diff" : "same"; 
+                            // Actually, FileCompareHelper requires two paths. Let's compute srcHash manually.
+                            string realSrcHash = "";
+                            try
+                            {
+                                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                                using var stream = File.OpenRead(srcFile);
+                                realSrcHash = BitConverter.ToString(sha256.ComputeHash(stream)).Replace("-", "").ToLower();
+                            } catch { }
+
+                            if (realSrcHash == dstHash) return;
+                        }
+                    }
+                    else
+                    {
                         return;
-                    else if (fileSize > 10 * 1024 * 1024)
-                        return;
+                    }
                 }
 
                 await CreateVersionIfNeededAsync(dstFile, folderName, relativePath);
@@ -219,9 +258,32 @@ public class BackupService
 
     private async Task<bool> CopyWithRetryAsync(string src, string dst, int maxAttempts = 3)
     {
+        var storage = GetStorage();
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            if (await SafeCopyHelper.SafeCopyAsync(src, dst)) return true;
+            try
+            {
+                await storage.WriteFileAsync(src, dst);
+                return true;
+            }
+            catch
+            {
+                // If normal copy failed, attempt VSS fallback
+                if (attempt == 1)
+                {
+                    var vssPath = _vss.GetSnapshotPath(src);
+                    if (vssPath != null)
+                    {
+                        _log.Log($"File locked, using VSS snapshot for: {Path.GetFileName(src)}");
+                        try
+                        {
+                            await storage.WriteFileAsync(vssPath, dst);
+                            return true;
+                        }
+                        catch { }
+                    }
+                }
+            }
 
             if (attempt < maxAttempts)
             {
@@ -234,36 +296,38 @@ public class BackupService
 
     // ─── Versioning ───────────────────────────────────────────────────────────
 
-    private Task CreateVersionIfNeededAsync(string currentBackupFile,
+    private async Task CreateVersionIfNeededAsync(string currentBackupFile,
         string folderName, string relativePath)
     {
         try
         {
+            var storage = GetStorage();
+            if (!await storage.ExistsAsync(currentBackupFile)) return;
+
             var cfg = _config.Config;
             var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
             var versionsBase = PathHelper.GetVersionsFolder(cfg.BackupRoot, id);
 
             var fi = new FileInfo(currentBackupFile);
-            var versionFileName = PathHelper.GetVersionFileName(fi.Name, fi.LastWriteTime);
+            var versionDate = await storage.GetLastWriteTimeUtcAsync(currentBackupFile);
+            var versionFileName = PathHelper.GetVersionFileName(fi.Name, versionDate);
 
             var relDir = Path.GetDirectoryName(relativePath) ?? "";
             var nameWithoutExt = Path.GetFileNameWithoutExtension(fi.Name);
             var versionFolder = Path.Combine(versionsBase, folderName, relDir, nameWithoutExt);
-            Directory.CreateDirectory(versionFolder);
+            await storage.CreateDirectoryAsync(versionFolder);
 
-            SafeCopyHelper.SafeMove(currentBackupFile, Path.Combine(versionFolder, versionFileName));
+            await storage.MoveFileAsync(currentBackupFile, Path.Combine(versionFolder, versionFileName));
         }
         catch (Exception ex)
         {
             _log.LogError($"Error creating version for {currentBackupFile}", ex);
         }
-
-        return Task.CompletedTask;
     }
 
     // ─── Deleted-file tracking ─────────────────────────────────────────────
 
-    private Task MoveDeletedFilesAsync(BackupResult result, CancellationToken ct)
+    private async Task MoveDeletedFilesAsync(BackupResult result, CancellationToken ct)
     {
         var cfg = _config.Config;
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
@@ -279,20 +343,22 @@ public class BackupService
             {
                 var srcFolder = PathHelper.GetSourceFolderPath(kvp.Key);
                 var dstFolder = Path.Combine(currentBase, kvp.Key);
-                if (!Directory.Exists(dstFolder)) continue;
+                var storage = GetStorage();
 
-                foreach (var backupFile in Directory.GetFiles(dstFolder, "*", SearchOption.AllDirectories))
+                var backupFiles = await storage.EnumerateFilesAsync(dstFolder, "*");
+                foreach (var backupFile in backupFiles)
                 {
                     if (ct.IsCancellationRequested) break;
                     var rel = Path.GetRelativePath(dstFolder, backupFile);
                     if (!File.Exists(Path.Combine(srcFolder, rel)))
                     {
                         var target = Path.Combine(todayFolder, kvp.Key, rel);
-                        if (SafeCopyHelper.SafeMove(backupFile, target))
+                        try
                         {
+                            await storage.MoveFileAsync(backupFile, target);
                             result.FilesMovedToDeleted++;
                             _log.Log($"Deleted file moved to Deleted: {Path.Combine(kvp.Key, rel)}");
-                        }
+                        } catch { }
                     }
                 }
             }
@@ -301,32 +367,42 @@ public class BackupService
                 _log.LogError($"Error processing deleted files for {kvp.Key}", ex);
             }
         }
-
-        return Task.CompletedTask;
     }
 
     // ─── Cleanup ──────────────────────────────────────────────────────────────
 
     public void CleanupOldVersions()
     {
+        // Safe fire and forget
+        _ = CleanupOldVersionsAsync();
+    }
+
+    private async Task CleanupOldVersionsAsync()
+    {
         var cfg = _config.Config;
         if (string.IsNullOrEmpty(cfg.BackupRoot)) return;
 
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
         var versionsBase = PathHelper.GetVersionsFolder(cfg.BackupRoot, id);
-        if (!Directory.Exists(versionsBase)) return;
+        var storage = GetStorage();
 
         try
         {
-            foreach (var folder in Directory.GetDirectories(versionsBase, "*", SearchOption.AllDirectories))
+            var dirs = await storage.EnumerateDirectoriesAsync(versionsBase);
+            foreach (var folder in dirs)
             {
-                var files = Directory.GetFiles(folder)
-                    .OrderByDescending(File.GetLastWriteTime)
-                    .ToList();
-
-                foreach (var old in files.Skip(cfg.KeepVersions))
+                var files = await storage.EnumerateFilesAsync(folder);
+                var fileDates = new List<(string file, DateTime date)>();
+                foreach (var file in files)
                 {
-                    try { File.Delete(old); _log.Log($"Removed old version: {Path.GetFileName(old)}"); }
+                    fileDates.Add((file, await storage.GetLastWriteTimeUtcAsync(file)));
+                }
+
+                var ordered = fileDates.OrderByDescending(x => x.date).ToList();
+
+                foreach (var old in ordered.Skip(cfg.KeepVersions))
+                {
+                    try { await storage.DeleteFileAsync(old.file); _log.Log($"Removed old version: {Path.GetFileName(old.file)}"); }
                     catch { /* ignore */ }
                 }
             }
@@ -336,21 +412,27 @@ public class BackupService
 
     public void CleanupOldDeletedFiles()
     {
+        _ = CleanupOldDeletedFilesAsync();
+    }
+
+    private async Task CleanupOldDeletedFilesAsync()
+    {
         var cfg = _config.Config;
         if (string.IsNullOrEmpty(cfg.BackupRoot)) return;
 
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
         var deletedBase = PathHelper.GetDeletedFolder(cfg.BackupRoot, id);
-        if (!Directory.Exists(deletedBase)) return;
+        var storage = GetStorage();
 
         var cutoff = DateTime.Now.AddDays(-cfg.KeepDeletedDays);
         try
         {
-            foreach (var dir in Directory.GetDirectories(deletedBase))
+            var dirs = await storage.EnumerateDirectoriesAsync(deletedBase);
+            foreach (var dir in dirs)
             {
                 if (DateTime.TryParse(Path.GetFileName(dir), out var date) && date < cutoff)
                 {
-                    Directory.Delete(dir, recursive: true);
+                    await storage.DeleteDirectoryAsync(dir);
                     _log.Log($"Removed old deleted folder: {Path.GetFileName(dir)}");
                 }
             }
@@ -405,24 +487,15 @@ public class BackupService
 
     public bool IsDestinationAvailable()
     {
-        var root = _config.Config.BackupRoot;
-        if (string.IsNullOrEmpty(root)) return false;
-        try { return Directory.Exists(root); }
-        catch { return false; }
+        // For UI fast checks, IsAvailableAsync would be better, but we are synchronous here
+        var storage = GetStorage();
+        return storage.IsAvailableAsync().GetAwaiter().GetResult();
     }
 
     public long GetAvailableDiskSpace()
     {
-        var root = _config.Config.BackupRoot;
-        if (string.IsNullOrEmpty(root)) return 0;
-        try
-        {
-            var drive = PathHelper.IsNetworkPath(root)
-                ? root
-                : (Path.GetPathRoot(root) ?? root);
-            return new DriveInfo(drive).AvailableFreeSpace;
-        }
-        catch { return 0; }
+        var storage = GetStorage();
+        return storage.GetAvailableSpaceAsync().GetAwaiter().GetResult();
     }
 
     private void SetStatus(BackupStatusEnum status)

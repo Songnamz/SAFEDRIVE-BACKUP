@@ -128,6 +128,19 @@
                 </StackPanel>
             </Border>
 
+            <!-- Exclusions -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Exclusion Filters" Margin="0,0,0,4"/>
+                    <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                               Text="Comma-separated list of files, folders, or wildcard patterns to ignore (e.g., *.tmp, node_modules)."/>
+
+                    <TextBox Text="{Binding ExcludedPatternsStr, UpdateSourceTrigger=PropertyChanged}"
+                             TextWrapping="Wrap" AcceptsReturn="True"
+                             MinHeight="60" Padding="8"/>
+                </StackPanel>
+            </Border>
+
             <!-- Action buttons -->
             <StackPanel Orientation="Horizontal">
                 <Button Content="Save Settings"

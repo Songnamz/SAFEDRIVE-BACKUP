@@ -54,6 +54,18 @@ public class FileWatcherService : IDisposable
                 _log.Log($"Continuous mode: file watchers active, periodic scan every {hours}h.");
                 break;
 
+            case "Every5Min":
+                _periodicTimer.Interval = TimeSpan.FromMinutes(5).TotalMilliseconds;
+                _periodicTimer.Start();
+                _log.Log("Scheduled mode: backup every 5 minutes.");
+                break;
+
+            case "Every10Min":
+                _periodicTimer.Interval = TimeSpan.FromMinutes(10).TotalMilliseconds;
+                _periodicTimer.Start();
+                _log.Log("Scheduled mode: backup every 10 minutes.");
+                break;
+
             case "Every30Min":
                 _periodicTimer.Interval = TimeSpan.FromMinutes(30).TotalMilliseconds;
                 _periodicTimer.Start();
@@ -138,6 +150,9 @@ public class FileWatcherService : IDisposable
     private void OnChanged(object sender, FileSystemEventArgs e)
     {
         if (_backupService.IsPaused) return;
+        
+        var relativePath = e.Name;
+        if (!string.IsNullOrEmpty(relativePath) && FilterHelper.IsExcluded(relativePath, _configService.Config.ExcludedPatterns)) return;
 
         // Restart debounce window — many rapid events collapse into one backup
         lock (_queueLock)

@@ -1,6 +1,6 @@
 # SafeDrive Backup
 
-A lightweight Windows desktop application that automatically backs up your personal files — Desktop, Documents, Downloads, Pictures, and more — to a local or network destination of your choice.
+A lightweight Windows desktop application that automatically backs up your personal files — Desktop, Documents, Downloads, Pictures, and more — to a local/network destination, or any S3-compatible cloud storage of your choice.
 
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
@@ -15,9 +15,12 @@ A lightweight Windows desktop application that automatically backs up your perso
 - **Version history** — Keeps multiple versions of each file so you can recover older copies
 - **Deleted file recovery** — Files removed from your computer are kept in the backup for a configurable number of days
 - **Restore anywhere** — Browse and restore any file to its original location or a custom folder
+- **Cloud Backup Support** — Securely back up to any S3-Compatible Cloud Storage (Amazon S3, Backblaze B2, Wasabi)
+- **Volume Shadow Copy (VSS)** — Automatically backs up locked or open files in use by other programs (requires Admin privileges)
+- **Advanced Exclusions** — Exclude temporary files, logs, node_modules, and custom patterns to save space
 - **Ransomware protection** — Automatically pauses backup if an abnormally large number of files change in a short time
 - **Runs silently in the background** — Lives in the system tray, never gets in your way
-- **No cloud, no subscription** — Your data stays on your own drive
+- **Privacy First** — Your data stays on your own drives or your private cloud buckets
 
 ---
 
@@ -108,7 +111,7 @@ Pictures  ──┘                                            Logs/
 On first launch, the setup wizard guides you through:
 
 1. Selecting which folders to back up
-2. Choosing a backup destination (local drive, external drive, or network path)
+2. Choosing a backup destination (local drive, network path, or S3 Cloud bucket)
 3. Selecting a backup mode
 
 All settings are stored in `%APPDATA%\SafeDriveBackup\safedrive-config.json`.

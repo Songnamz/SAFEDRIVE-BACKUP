@@ -16,7 +16,16 @@ public class RestoreService
         _log = log;
     }
 
-    public List<RestoreItem> GetCurrentFiles()
+    private IStorageProvider GetStorage()
+    {
+        var cfg = _config.Config;
+        if (cfg.DestinationType == DestinationType.S3Compatible)
+            return new S3StorageProvider(cfg);
+        
+        return new LocalStorageProvider(cfg.BackupRoot ?? "");
+    }
+
+    public async Task<List<RestoreItem>> GetCurrentFilesAsync()
     {
         var items = new List<RestoreItem>();
         var cfg = _config.Config;
@@ -25,15 +34,15 @@ public class RestoreService
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
         var currentBase = PathHelper.GetCurrentFolder(cfg.BackupRoot, id);
         var versionsBase = PathHelper.GetVersionsFolder(cfg.BackupRoot, id);
-        if (!Directory.Exists(currentBase)) return items;
-
+        var storage = GetStorage();
         try
         {
-            foreach (var file in Directory.EnumerateFiles(currentBase, "*", SearchOption.AllDirectories))
+            var files = await storage.EnumerateFilesAsync(currentBase, "*");
+            foreach (var file in files)
             {
-                var fi = new FileInfo(file);
+                var fiName = Path.GetFileName(file);
                 var rel = Path.GetRelativePath(currentBase, file);
-                var parts = rel.Split(Path.DirectorySeparatorChar);
+                var parts = rel.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
                 // Skip files not inside a named folder (unexpected backup structure)
                 if (parts.Length < 2) continue;
@@ -43,16 +52,18 @@ public class RestoreService
 
                 var verFolder = Path.Combine(versionsBase, folder,
                     Path.GetDirectoryName(relWithoutFolder) ?? "",
-                    Path.GetFileNameWithoutExtension(fi.Name));
-                var versionCount = Directory.Exists(verFolder) ? Directory.GetFiles(verFolder).Length : 0;
+                    Path.GetFileNameWithoutExtension(fiName));
+                
+                var versionFiles = await storage.EnumerateFilesAsync(verFolder, "*");
+                var versionCount = versionFiles.Count();
 
                 items.Add(new RestoreItem
                 {
-                    FileName = fi.Name,
+                    FileName = fiName,
                     OriginalFolder = folder,
                     FullPath = file,
-                    BackupDate = fi.LastWriteTime,
-                    FileSize = fi.Length,
+                    BackupDate = await storage.GetLastWriteTimeUtcAsync(file),
+                    FileSize = await storage.GetFileSizeAsync(file),
                     ItemType = RestoreItemType.Current,
                     RelativePath = rel,
                     VersionCount = versionCount
@@ -64,7 +75,7 @@ public class RestoreService
         return items.OrderBy(i => i.OriginalFolder).ThenBy(i => i.FileName).ToList();
     }
 
-    public List<RestoreItem> GetVersionFiles()
+    public async Task<List<RestoreItem>> GetVersionFilesAsync()
     {
         var items = new List<RestoreItem>();
         var cfg = _config.Config;
@@ -72,15 +83,15 @@ public class RestoreService
 
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
         var versionsBase = PathHelper.GetVersionsFolder(cfg.BackupRoot, id);
-        if (!Directory.Exists(versionsBase)) return items;
-
+        var storage = GetStorage();
         try
         {
-            foreach (var file in Directory.EnumerateFiles(versionsBase, "*", SearchOption.AllDirectories))
+            var files = await storage.EnumerateFilesAsync(versionsBase, "*");
+            foreach (var file in files)
             {
-                var fi = new FileInfo(file);
+                var fiName = Path.GetFileName(file);
                 var rel = Path.GetRelativePath(versionsBase, file);
-                var parts = rel.Split(Path.DirectorySeparatorChar);
+                var parts = rel.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
                 // Skip files not inside a named folder
                 if (parts.Length < 2) continue;
@@ -89,11 +100,11 @@ public class RestoreService
 
                 items.Add(new RestoreItem
                 {
-                    FileName = fi.Name,
+                    FileName = fiName,
                     OriginalFolder = folder,
                     FullPath = file,
-                    BackupDate = fi.LastWriteTime,
-                    FileSize = fi.Length,
+                    BackupDate = await storage.GetLastWriteTimeUtcAsync(file),
+                    FileSize = await storage.GetFileSizeAsync(file),
                     ItemType = RestoreItemType.Version,
                     RelativePath = rel
                 });
@@ -105,7 +116,7 @@ public class RestoreService
                     .ThenByDescending(i => i.BackupDate).ToList();
     }
 
-    public List<RestoreItem> GetDeletedFiles()
+    public async Task<List<RestoreItem>> GetDeletedFilesAsync()
     {
         var items = new List<RestoreItem>();
         var cfg = _config.Config;
@@ -113,15 +124,15 @@ public class RestoreService
 
         var id = PathHelper.GetBackupIdentifier(cfg.ComputerName, cfg.Username);
         var deletedBase = PathHelper.GetDeletedFolder(cfg.BackupRoot, id);
-        if (!Directory.Exists(deletedBase)) return items;
-
+        var storage = GetStorage();
         try
         {
-            foreach (var file in Directory.EnumerateFiles(deletedBase, "*", SearchOption.AllDirectories))
+            var files = await storage.EnumerateFilesAsync(deletedBase, "*");
+            foreach (var file in files)
             {
-                var fi = new FileInfo(file);
+                var fiName = Path.GetFileName(file);
                 var rel = Path.GetRelativePath(deletedBase, file);
-                var parts = rel.Split(Path.DirectorySeparatorChar);
+                var parts = rel.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
                 // Deleted folder structure: {yyyy-MM-dd}\{folderName}\{file}
                 DateTime.TryParseExact(
@@ -135,11 +146,11 @@ public class RestoreService
 
                 items.Add(new RestoreItem
                 {
-                    FileName = fi.Name,
+                    FileName = fiName,
                     OriginalFolder = folder,
                     FullPath = file,
-                    BackupDate = deletedDate != default ? deletedDate : fi.LastWriteTime,
-                    FileSize = fi.Length,
+                    BackupDate = deletedDate != default ? deletedDate : await storage.GetLastWriteTimeUtcAsync(file),
+                    FileSize = await storage.GetFileSizeAsync(file),
                     ItemType = RestoreItemType.Deleted,
                     RelativePath = rel
                 });
@@ -181,13 +192,13 @@ public class RestoreService
             }
 
             var destDir = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+            if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir); // Always local destination!
 
-            var ok = await SafeCopyHelper.SafeCopyAsync(item.FullPath, targetPath);
-            _log.Log(ok
-                ? $"Restored: {item.FileName} → {targetPath}"
-                : $"Restore FAILED: {item.FileName}");
-            return ok;
+            var storage = GetStorage();
+            
+            await storage.ReadFileAsync(item.FullPath, targetPath);
+            _log.Log($"Restored: {item.FileName} → {targetPath}");
+            return true;
         }
         catch (Exception ex)
         {

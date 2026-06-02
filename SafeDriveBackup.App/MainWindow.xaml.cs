@@ -7,6 +7,6 @@ public partial class MainWindow : System.Windows.Window
     public MainWindow()
     {
         InitializeComponent();
-        Icon = new BitmapImage(new Uri("pack://application:,,,/SafeDrive.ico"));
+        Icon = SafeDriveBackup.Services.TrayIconService.CreateShieldImageSource(System.Drawing.Color.FromArgb(0, 120, 212), 256);
     }
 }

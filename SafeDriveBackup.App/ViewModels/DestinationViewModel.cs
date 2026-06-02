@@ -1,4 +1,5 @@
 using SafeDriveBackup.Services;
+using SafeDriveBackup.Models;
 
 namespace SafeDriveBackup.ViewModels;
 
@@ -12,6 +13,31 @@ public class DestinationViewModel : BaseViewModel
     private string _statusMessage = "";
     private bool _destinationAvailable;
     private string _availableSpace = "";
+
+    // S3 Cloud Properties
+    private DestinationType _destinationType;
+    private string _s3EndpointUrl = "";
+    private string _s3AccessKey = "";
+    private string _s3SecretKey = "";
+    private string _s3BucketName = "";
+    private string _s3Region = "";
+
+    public DestinationType DestinationType
+    {
+        get => _destinationType;
+        set { SetProperty(ref _destinationType, value); OnPropertyChanged(nameof(IsLocalDestination)); OnPropertyChanged(nameof(IsS3Destination)); }
+    }
+    public bool IsLocalDestination => _destinationType == DestinationType.LocalOrNetwork;
+    public bool IsS3Destination => _destinationType == DestinationType.S3Compatible;
+
+    public bool TypeLocal { get => _destinationType == DestinationType.LocalOrNetwork; set { if (value) DestinationType = DestinationType.LocalOrNetwork; } }
+    public bool TypeS3 { get => _destinationType == DestinationType.S3Compatible; set { if (value) DestinationType = DestinationType.S3Compatible; } }
+
+    public string S3EndpointUrl { get => _s3EndpointUrl; set => SetProperty(ref _s3EndpointUrl, value); }
+    public string S3AccessKey   { get => _s3AccessKey;   set => SetProperty(ref _s3AccessKey,   value); }
+    public string S3SecretKey   { get => _s3SecretKey;   set => SetProperty(ref _s3SecretKey,   value); }
+    public string S3BucketName  { get => _s3BucketName;  set => SetProperty(ref _s3BucketName,  value); }
+    public string S3Region      { get => _s3Region;      set => SetProperty(ref _s3Region,      value); }
 
     public string Destination
     {
@@ -27,6 +53,8 @@ public class DestinationViewModel : BaseViewModel
             if (!SetProperty(ref _backupMode, value)) return;
             // Notify all radio-button properties that derive from this value
             OnPropertyChanged(nameof(ModeContinuous));
+            OnPropertyChanged(nameof(Mode5Min));
+            OnPropertyChanged(nameof(Mode10Min));
             OnPropertyChanged(nameof(Mode30Min));
             OnPropertyChanged(nameof(Mode1Hour));
             OnPropertyChanged(nameof(ModeDaily));
@@ -54,6 +82,8 @@ public class DestinationViewModel : BaseViewModel
 
     // Backup mode selections (radio-button style)
     public bool ModeContinuous   { get => _backupMode == "Continuous";   set { if (value) BackupMode = "Continuous";   } }
+    public bool Mode5Min         { get => _backupMode == "Every5Min";    set { if (value) BackupMode = "Every5Min";    } }
+    public bool Mode10Min        { get => _backupMode == "Every10Min";   set { if (value) BackupMode = "Every10Min";   } }
     public bool Mode30Min        { get => _backupMode == "Every30Min";   set { if (value) BackupMode = "Every30Min";   } }
     public bool Mode1Hour        { get => _backupMode == "Every1Hour";   set { if (value) BackupMode = "Every1Hour";   } }
     public bool ModeDaily        { get => _backupMode == "Daily";        set { if (value) BackupMode = "Daily";        } }
@@ -78,8 +108,16 @@ public class DestinationViewModel : BaseViewModel
     public void Load()
     {
         var cfg = _config.Config;
+        DestinationType = cfg.DestinationType;
         Destination = cfg.BackupRoot;
         BackupMode  = cfg.BackupMode; // setter notifies all radio properties
+        
+        S3EndpointUrl = cfg.S3EndpointUrl;
+        S3AccessKey   = cfg.S3AccessKey;
+        S3SecretKey   = cfg.S3SecretKey;
+        S3BucketName  = cfg.S3BucketName;
+        S3Region      = cfg.S3Region;
+
         CheckAvailability();
     }
 
@@ -98,8 +136,16 @@ public class DestinationViewModel : BaseViewModel
     private void Save()
     {
         var cfg = _config.Config;
+        cfg.DestinationType = DestinationType;
         cfg.BackupRoot = Destination;
         cfg.BackupMode = BackupMode;
+        
+        cfg.S3EndpointUrl = S3EndpointUrl;
+        cfg.S3AccessKey   = S3AccessKey;
+        cfg.S3SecretKey   = S3SecretKey;
+        cfg.S3BucketName  = S3BucketName;
+        cfg.S3Region      = S3Region;
+
         _config.Save();
         _backup.SetupLogFolder();
         CheckAvailability();
